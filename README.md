@@ -1,5 +1,15 @@
-# JDWP
-基于GOLANG实现的JDWP通信协议
-## FROM
-https://github.com/google/gapid 
-+ 把gapid的JDWP单独分离出来(https://github.com/google/gapid/tree/master/core/java/jdwp)
+# GoLang实现的JDWP通信协议
+&emsp;本项目根据https://github.com/google/gapid的原型进行修改，底层的通信并无改变，主要修改的是对外暴露的API。 
+gapid封装的jdwp比较简单，并且功能十分简单，库本身并没有屏蔽底层的通信。相反，使用gapid的jdwp进行开发，你必须十分了解JDWP每一个通信包的结构，不利于调试开发。
+
+
+&emsp;本库虽然做了大量的封装，但是并没有支持全部的JDI功能，以下是本库所不支持的操作:
++ 不支持修改Array的数组对象
++ 不支持修改Object的内部数据
++ 不支持修改堆栈的变量
++ 不支持修改内存已有的变量值
+
+
+基于此情况，我需要做出一些说明：
+1. 本库的目的并不是强调对JVM的内存修改，所以默认不实现任何具备修改内存对象值的指令集
+2. 默认仅仅只是不支持修改变量值，但是invoke方法依旧提供

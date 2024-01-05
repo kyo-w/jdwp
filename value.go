@@ -1,30 +1,168 @@
-// Copyright (C) 2017 Google Inc.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//      http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package jdwp
 
-// Value is a generic value that can be one of the following types:
-// • bool           • Char           • int            • int8
-// • int16          • int32          • int64          • float32
-// • float64        • ArrayID        • ClassLoaderID  • ClassObjectID
-// • ObjectID       • StringID       • ThreadGroupID  • ThreadID
-// • nil
-type Value interface{}
+/*
+*
+下面的所有接口均是对象引用的所有类型
+*/
+const (
+	INVOKE_SINGLE_THREADED = 0x1
+	INVOKE_NONVIRTUAL      = 0x2
 
-// ValueSlice contains a set of values
-type ValueSlice []Value
+	THREAD_STATUS_UNKNOWN     = -1
+	THREAD_STATUS_ZOMBIE      = 0
+	THREAD_STATUS_RUNNING     = 1
+	THREAD_STATUS_SLEEPING    = 2
+	THREAD_STATUS_MONITOR     = 3
+	THREAD_STATUS_WAIT        = 4
+	THREAD_STATUS_NOT_STARTED = 5
+)
 
-// untaggedValue can hold the same types as Value, but when encoded / decoded it
-// is not prefixed with a type tag.
-type untaggedValue interface{}
+type Int int
+type Float float32
+type Double float64
+type Char int16
+type Long int64
+type Short int16
+
+type Value interface {
+	Mirror
+	GetType() Type
+}
+
+type BooleanValue interface {
+	Value
+	GetValue() bool
+}
+type ByteValue interface {
+	Value
+	GetValue() byte
+}
+type CharValue interface {
+	Value
+	GetValue() Char
+}
+type DoubleValue interface {
+	Value
+	GetValue() Double
+}
+type FloatValue interface {
+	Value
+	GetValue() Float
+}
+type IntegerValue interface {
+	Value
+	GetValue() Int
+}
+type LongValue interface {
+	Value
+	GetValue() Long
+}
+type ShortValue interface {
+	Value
+	GetValue() Short
+}
+type StringReference interface {
+	ObjectReference
+	GetStringValue() string
+}
+
+type ObjectReference interface {
+	Value
+	GetUniqueID() ObjectID
+	// GetReferenceType 返回对象引用的ReferenceType
+	GetReferenceType() ReferenceType
+	// GetValue 通过字段返回Value值
+	GetValue(Field) Value
+	GetValues([]Field) map[Field]Value
+
+	// InvokeMethod
+	//ThreadReference 线程引用
+	//Method 方法引用
+	//[]Value 参数列表
+	//int 参数
+	///**
+	InvokeMethod(reference ThreadReference, method Method, args []Value, options InvokeOptions) (value Value, error ObjectReference)
+
+	// DisableCollection 停止垃圾回收机制
+	DisableCollection()
+	// EnableCollection 开启垃圾回收机制
+	EnableCollection()
+	// IsCollected 是否被垃圾回收
+	IsCollected() bool
+
+	// GetReferringObjects /**
+	GetReferringObjects(maxReferrers int) []ObjectReference
+}
+
+type ArrayReference interface {
+	ObjectReference
+	// GetLength 返回数组的长度
+	GetLength() int
+	GetArrayValue(index int) Value
+	GetArrayValues() []Value
+	// GetArraySlice
+	//index表示起始位置
+	//length表示要获取的个数
+	///**
+	GetArraySlice(index, length int) []Value
+}
+
+type ClassLoaderReference interface {
+	ObjectReference
+
+	// GetDefinedClasses
+	//返回当前ClassLoaderReference引用加载的所有字节码ReferenceType引用
+	///**
+	GetDefinedClasses() []ReferenceType
+
+	// GetVisibleClasses
+	//返回当前ClassLoaderReference引用加载并且初始化的所有字节码ReferenceType引用
+	///**
+	GetVisibleClasses() []ReferenceType
+}
+
+type ClassObjectReference interface {
+	ObjectReference
+	// GetReflectedType 返回Class类对应的类ReferenceType
+	GetReflectedType() ReferenceType
+}
+
+type ModuleReference interface {
+	ObjectReference
+	GetName() string
+	GetClassLoader() ClassLoaderReference
+}
+
+type ThreadGroupReference interface {
+	ObjectReference
+	GetName() string
+	// GetParent 返回此线程组的父级。
+	GetParent() ThreadGroupReference
+	// Suspend 挂起线程组所有的线程
+	Suspend()
+	// Resume 将所有的挂起线程启动起来
+	Resume()
+	// GetAllThread 返回线程组所有的线程引用
+	GetAllThread() []ThreadReference
+	// GetThreadGroups 返回一个列表，其中包含此线程组中的每个活动ThreadGroupReference。仅返回此直接线程组中的活动线程组（而不是其子组）。有关“活动”线程组的信息，请参阅线程组
+	GetThreadGroups() []ThreadGroupReference
+}
+type ThreadReference interface {
+	ObjectReference
+	GetName() string
+	Suspend()
+	Resume()
+	SuspendCount() int
+	Status() ThreadStatus
+	IsSuspended() bool
+	IsAtBreakpoint() bool
+	GetThreadGroup() ThreadGroupReference
+	GetFrameCount() int
+	GetFrames() []StackFrame
+	GetFrameByIndex(int) StackFrame
+	GetFrameSlice(start, length int) []StackFrame
+}
+type VoidValue interface {
+	Value
+	Void()
+}
