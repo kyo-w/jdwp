@@ -35,6 +35,10 @@ type TaggedObjectID struct {
 	TagID    Tag
 	ObjectID ObjectID
 }
+type TaggedAny struct {
+	TagID Tag
+	Value any
+}
 type SuspendPolicy byte
 
 type LocationID struct {

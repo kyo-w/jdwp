@@ -54,15 +54,7 @@ func (o *ObjectReferenceImpl) InvokeMethod(thread jdi.ThreadReference, method jd
 		}
 		panic("unknown method type")
 	}
-	argsValueId := make([]jdi.ValueID, len(args))
-	for index, value := range args {
-		argsValueId[index] = value
-	}
-	return o.objectReferenceInvokeMethod(o.ObjectId,
-		jdi.ThreadID(thread.GetUniqueID()),
-		jdi.ClassID(referType.GetUniqueID()),
-		jdi.MethodID(method.GetUniqueID()),
-		argsValueId, options)
+	return invokeObjectMethod(o.MirrorImpl, o.ObjectId, thread, jdi.ClassID(referType.GetUniqueID()), method, args, options)
 }
 
 func (o *ObjectReferenceImpl) DisableCollection() {
@@ -89,4 +81,7 @@ func (o *ObjectReferenceImpl) UniqueID() jdi.ObjectID {
 
 func (o *ObjectReferenceImpl) GetReferringObjects(maxReferrers int) []jdi.ObjectReference {
 	return *o.objectReferenceReferringObjects(o.ObjectId, maxReferrers)
+}
+func (o *ObjectReferenceImpl) GetTagType() jdi.Tag {
+	return jdi.OBJECT
 }

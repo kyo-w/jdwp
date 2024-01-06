@@ -20,7 +20,14 @@ func Attach(ctx context.Context, hostname string) (jdi.VirtualMachine, error) {
 	}
 	vm := &VirtualMachineImpl{conn: vmConn, Context: ctx}
 	eventManager := &EventRequestManagerImpl{vm: vm}
-	mirrorRoot := &MirrorImpl{vm: vm}
+	mirrorRoot := &MirrorImpl{
+		vm:                 vm,
+		typeClassLoaderMap: make(map[jdi.ReferenceTypeID]jdi.ClassLoaderReference),
+		typeFieldMap:       make(map[jdi.ReferenceTypeID][]jdi.Field),
+		typeMethodMap:      make(map[jdi.ReferenceTypeID][]jdi.Method),
+		typeSignatureMap:   make(map[jdi.ReferenceTypeID]string),
+		typeRefMap:         make(map[jdi.ObjectID]jdi.ReferenceType),
+	}
 	vm.MirrorImpl = mirrorRoot
 	vm.EventManager = eventManager
 	return vm, nil

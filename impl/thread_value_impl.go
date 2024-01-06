@@ -78,3 +78,6 @@ func (t *ThreadReferenceImpl) GetFrameByIndex(i int) jdi.StackFrame {
 func (t *ThreadReferenceImpl) GetFrameSlice(start, length int) []jdi.StackFrame {
 	return t.threadReferenceFrames(t, start, length)
 }
+func (t *ThreadReferenceImpl) GetTagType() jdi.Tag {
+	return jdi.THREAD
+}

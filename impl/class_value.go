@@ -11,3 +11,6 @@ type ClassObjectReferenceImpl struct {
 func (c *ClassObjectReferenceImpl) GetReflectedType() jdi.ReferenceType {
 	return c.classObjectReferenceReflectedType(jdi.ClassObjectID(c.GetUniqueID()))
 }
+func (c *ClassObjectReferenceImpl) GetTagType() jdi.Tag {
+	return jdi.ClassObject
+}

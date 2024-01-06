@@ -133,7 +133,7 @@ func (r *ReferenceTypeImpl) FailedToInitialize() bool {
 }
 
 func (r *ReferenceTypeImpl) GetFields() []jdi.Field {
-	return *r.referenceTypeFields(r, r.TypeID)
+	return r.referenceTypeFields(r, r.TypeID)
 }
 
 func (r *ReferenceTypeImpl) GetAllVisibleFields() []jdi.Field {
@@ -174,7 +174,7 @@ func (r *ReferenceTypeImpl) GetFieldByName(name string) jdi.Field {
 }
 
 func (r *ReferenceTypeImpl) GetMethods() []jdi.Method {
-	return *r.referenceMethodsWithGeneric(r, r.TypeID)
+	return r.referenceTypeMethods(r, r.TypeID)
 }
 
 func (r *ReferenceTypeImpl) GetVisibleMethods() []jdi.Method {

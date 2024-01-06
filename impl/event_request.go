@@ -130,7 +130,6 @@ func (e *EventRequestImpl) listenHandler() {
 		select {
 		case event := <-events:
 			eventObject := translateEventToObject(event, e.vm)
-			e.vm.vmSuspend()
 			e.vm.FreezeVm()
 			closeHandler = e.handler(eventObject)
 			e.vm.UnFreezeVm()

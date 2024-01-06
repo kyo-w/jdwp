@@ -26,3 +26,6 @@ func (a *ArrayReferenceImpl) GetArrayValues() []jdi.Value {
 func (a *ArrayReferenceImpl) GetArraySlice(index, length int) []jdi.Value {
 	return *a.arrayReferenceGetValues(jdi.ArrayID(a.GetUniqueID()), index, length)
 }
+func (a *ArrayReferenceImpl) GetTagType() jdi.Tag {
+	return jdi.ARRAY
+}

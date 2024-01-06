@@ -3,7 +3,6 @@ package impl
 import (
 	"context"
 	jdi "github.com/kyo-w/jdwp"
-	"log"
 	"testing"
 )
 
@@ -15,19 +14,17 @@ func TestVm(t *testing.T) {
 			location := value.GetLocation()
 			request := vm.GetEventRequestManager().CreateBreakpointRequest(location)
 			request.SetSuspendPolicy(jdi.SuspendEventThread)
-			var i = 0
 			request.SetHandler(func(eventObject jdi.EventObject) bool {
 				object := eventObject.(EventBreakpointResponseObject)
 				thread := object.GetThread()
-				index := thread.GetFrameByIndex(0)
-				thisObject := index.GetThisObject()
-				getType := thisObject.GetType()
-				log.Println(getType.GetTypeName())
-				if i == 1 {
-					i = i + 1
-					return false
-				}
-				return true
+				bySignature := thread.GetVirtualMachine().GetClassesByName("java.lang.Runtime")[0]
+				method := bySignature.GetMethodsByName("getRuntime")[0]
+				ref, _ := bySignature.(jdi.ClassType).InvokeMethod(thread, method, []jdi.Value{}, jdi.InvokeNonvirtual)
+				method1 := ref.(jdi.ObjectReference).GetType().(jdi.ClassType).GetMethodsByName("exec")[0]
+				args := make([]jdi.Value, 1)
+				args[0] = ref.GetVirtualMachine().MirrorOfString("calc")
+				ref.(jdi.ObjectReference).InvokeMethod(thread, method1, args, jdi.InvokeSingleThreaded)
+				return false
 			})
 			request.Enable()
 		}

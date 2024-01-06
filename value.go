@@ -27,6 +27,7 @@ type Short int16
 type Value interface {
 	Mirror
 	GetType() Type
+	GetTagType() Tag
 }
 
 type BooleanValue interface {

@@ -10,11 +10,11 @@ type ClassLoaderReferenceImpl struct {
 	defineClasses     []jdi.ReferenceType
 }
 
-func (c ClassLoaderReferenceImpl) GetVisibleClasses() []jdi.ReferenceType {
+func (c *ClassLoaderReferenceImpl) GetVisibleClasses() []jdi.ReferenceType {
 	return *c.classLoaderReferenceVisibleClasses(jdi.ClassObjectID(c.GetUniqueID()))
 }
 
-func (c ClassLoaderReferenceImpl) GetDefinedClasses() []jdi.ReferenceType {
+func (c *ClassLoaderReferenceImpl) GetDefinedClasses() []jdi.ReferenceType {
 	if !c.hasLockClasses() || !c.initDefineClasses {
 		var out []jdi.ReferenceType
 		classes := c.vmAllClasses()
@@ -26,4 +26,7 @@ func (c ClassLoaderReferenceImpl) GetDefinedClasses() []jdi.ReferenceType {
 		c.defineClasses = out
 	}
 	return c.defineClasses
+}
+func (c *ClassLoaderReferenceImpl) GetTagType() jdi.Tag {
+	return jdi.ClassLoader
 }

@@ -58,9 +58,13 @@ type slot struct {
 type MirrorImpl struct {
 	vm *VirtualMachineImpl
 	// 当freezeVm锁定时,会默认目标VM已经不再产生新的Class, 请自行确保运行的环境不会产生新的Class
-	lockClasses     bool
-	classTypesCache *[]jdi.ReferenceType
-	typeRefMap      map[jdi.ObjectID]jdi.ReferenceType
+	lockClasses        bool
+	classTypesCache    *[]jdi.ReferenceType
+	typeRefMap         map[jdi.ObjectID]jdi.ReferenceType
+	typeSignatureMap   map[jdi.ReferenceTypeID]string
+	typeClassLoaderMap map[jdi.ReferenceTypeID]jdi.ClassLoaderReference
+	typeFieldMap       map[jdi.ReferenceTypeID][]jdi.Field
+	typeMethodMap      map[jdi.ReferenceTypeID][]jdi.Method
 }
 
 func (m *MirrorImpl) FreezeVm() {
@@ -238,39 +242,68 @@ func (m *MirrorImpl) makeLocationMirror(location *locationInfo) jdi.Location {
 		LineNumber:    location.LineNumber}
 }
 
+// 不推荐使用vmAllClassesWithGeneric
+func (m *MirrorImpl) vmAllClassesWithGeneric() *[]jdi.ReferenceType {
+	var res []struct {
+		Tag              jdi.TypeTag
+		TypeID           jdi.ReferenceTypeID
+		Signature        string
+		GenericSignature string
+		Status           jdi.ClassStatus
+	}
+	m.runCmd(connect.CmdVirtualMachineAllClassesWithGeneric, struct{}{}, &res)
+	out := make([]jdi.ReferenceType, len(res))
+	for index, value := range res {
+		out[index] = m.makeReferenceTypeMirror(value.TypeID, value.Tag, &referenceTypeInfo{
+			Status:           value.Status,
+			SignatureName:    value.Signature,
+			GenericSignature: value.GenericSignature,
+		})
+	}
+	return &out
+}
 func (m *MirrorImpl) vmGetVersion() *jdi.VmVersion {
 	out := &jdi.VmVersion{}
 	m.runCmd(connect.CmdVirtualMachineVersion, struct{}{}, out)
 	return out
 }
 func (m *MirrorImpl) vmClassesBySignature(signature string) *[]jdi.ReferenceType {
-	var res []struct {
-		Tag    jdi.TypeTag
-		TypeID jdi.ReferenceTypeID
-		Status jdi.ClassStatus
-	}
-	m.runCmd(connect.CmdVirtualMachineClassesBySignature, &signature, &res)
-	out := make([]jdi.ReferenceType, len(res))
-	for index, value := range res {
-		out[index] = m.makeReferenceTypeMirror(value.TypeID, value.Tag, &referenceTypeInfo{Status: value.Status})
+	var out []jdi.ReferenceType
+	if !m.hasLockClasses() || m.classTypesCache == nil {
+		var res []struct {
+			Tag    jdi.TypeTag
+			TypeID jdi.ReferenceTypeID
+			Status jdi.ClassStatus
+		}
+		m.runCmd(connect.CmdVirtualMachineClassesBySignature, &signature, &res)
+		out = make([]jdi.ReferenceType, len(res))
+		for index, value := range res {
+			out[index] = m.makeReferenceTypeMirror(value.TypeID, value.Tag, &referenceTypeInfo{Status: value.Status})
+		}
+	} else {
+		for _, value := range *m.classTypesCache {
+			if value.GetSignature() == signature {
+				out = append(out, value)
+			}
+		}
 	}
 	return &out
 }
 func (m *MirrorImpl) vmAllClasses() *[]jdi.ReferenceType {
-	//if !m.freezeVm || m.classTypesCache == nil {
-	var res []struct {
-		Tag       jdi.TypeTag
-		TypeID    jdi.ReferenceTypeID
-		Signature string
-		Status    jdi.ClassStatus
+	if !m.hasLockClasses() || m.classTypesCache == nil {
+		var res []struct {
+			Tag       jdi.TypeTag
+			TypeID    jdi.ReferenceTypeID
+			Signature string
+			Status    jdi.ClassStatus
+		}
+		m.runCmd(connect.CmdVirtualMachineAllClasses, struct{}{}, &res)
+		out := make([]jdi.ReferenceType, len(res))
+		for index, value := range res {
+			out[index] = m.makeReferenceTypeMirror(value.TypeID, value.Tag, &referenceTypeInfo{Status: value.Status, SignatureName: value.Signature})
+		}
+		m.classTypesCache = &out
 	}
-	m.runCmd(connect.CmdVirtualMachineAllClasses, struct{}{}, &res)
-	out := make([]jdi.ReferenceType, len(res))
-	for index, value := range res {
-		out[index] = m.makeReferenceTypeMirror(value.TypeID, value.Tag, &referenceTypeInfo{Status: value.Status, SignatureName: value.Signature})
-	}
-	m.classTypesCache = &out
-	//}
 	return m.classTypesCache
 }
 func (m *MirrorImpl) vmAllThreads() *[]jdi.ThreadReference {
@@ -333,82 +366,75 @@ func (m *MirrorImpl) vmCapabilitiesNew() *jdi.Capabilities {
 	m.runCmd(connect.CmdVirtualMachineCapabilitiesNew, struct{}{}, out)
 	return out
 }
-func (m *MirrorImpl) vmAllClassesWithGeneric() *[]jdi.ReferenceType {
-	var res []struct {
-		Tag              jdi.TypeTag
-		TypeID           jdi.ReferenceTypeID
-		Signature        string
-		GenericSignature string
-		Status           jdi.ClassStatus
-	}
-	m.runCmd(connect.CmdVirtualMachineAllClassesWithGeneric, struct{}{}, &res)
-	out := make([]jdi.ReferenceType, len(res))
-	for index, value := range res {
-		out[index] = m.makeReferenceTypeMirror(value.TypeID, value.Tag, &referenceTypeInfo{
-			Status:           value.Status,
-			SignatureName:    value.Signature,
-			GenericSignature: value.GenericSignature,
-		})
-	}
-	return &out
-}
 
 func (m *MirrorImpl) referenceTypeSignature(id jdi.ReferenceTypeID) string {
-	var signature string
-	m.runCmd(connect.CmdReferenceTypeSignature, id, &signature)
+	signature := m.typeSignatureMap[id]
+	if signature == "" {
+		m.runCmd(connect.CmdReferenceTypeSignature, id, &signature)
+		m.typeSignatureMap[id] = signature
+	}
 	return signature
 }
 func (m *MirrorImpl) referenceTypeClassLoader(id jdi.ReferenceTypeID) jdi.ClassLoaderReference {
-	var classLoaderId jdi.ClassLoaderID
-	m.runCmd(connect.CmdReferenceTypeClassLoader, id, &classLoaderId)
-	out := m.makeObjectMirror(jdi.ObjectID(classLoaderId), jdi.ClassLoader)
+	out := m.typeClassLoaderMap[id]
 	if out == nil {
-		return nil
+		var classLoaderId jdi.ClassLoaderID
+		m.runCmd(connect.CmdReferenceTypeClassLoader, id, &classLoaderId)
+		out = m.makeObjectMirror(jdi.ObjectID(classLoaderId), jdi.ClassLoader).(jdi.ClassLoaderReference)
+		m.typeClassLoaderMap[id] = out
 	}
-	return out.(jdi.ClassLoaderReference)
+	return out
 }
 func (m *MirrorImpl) referenceTypeModifiers(id jdi.ReferenceTypeID) int {
 	var out int
 	m.runCmd(connect.CmdReferenceTypeModifiers, id, &out)
 	return out
 }
-func (m *MirrorImpl) referenceTypeFields(thisType jdi.ReferenceType, id jdi.ReferenceTypeID) *[]jdi.Field {
-	var res []struct {
-		FieldID   jdi.FieldID
-		Name      string
-		Signature string
-		ModBits   int
+func (m *MirrorImpl) referenceTypeFields(thisType jdi.ReferenceType, id jdi.ReferenceTypeID) []jdi.Field {
+	out := m.typeFieldMap[id]
+	if out == nil {
+		var res []struct {
+			FieldID   jdi.FieldID
+			Name      string
+			Signature string
+			ModBits   int
+		}
+		m.runCmd(connect.CmdReferenceTypeFields, id, &res)
+		out = make([]jdi.Field, len(res))
+		for index, value := range res {
+			out[index] = m.makeFieldMirror(value.FieldID, &typeComponentInfo{
+				Name:          value.Name,
+				Signature:     value.Signature,
+				Modifiers:     value.ModBits,
+				DeclaringType: thisType,
+			})
+		}
+		m.typeFieldMap[id] = out
 	}
-	m.runCmd(connect.CmdReferenceTypeFields, id, &res)
-	out := make([]jdi.Field, len(res))
-	for index, value := range res {
-		out[index] = m.makeFieldMirror(value.FieldID, &typeComponentInfo{
-			Name:          value.Name,
-			Signature:     value.Signature,
-			Modifiers:     value.ModBits,
-			DeclaringType: thisType,
-		})
-	}
-	return &out
+	return out
 }
-func (m *MirrorImpl) referenceTypeMethods(thisTypeRef jdi.ReferenceType, id jdi.ReferenceTypeID) *[]jdi.Method {
-	var res []struct {
-		MethodID  jdi.MethodID
-		Name      string
-		Signature string
-		ModBits   int
+func (m *MirrorImpl) referenceTypeMethods(thisTypeRef jdi.ReferenceType, id jdi.ReferenceTypeID) []jdi.Method {
+	out := m.typeMethodMap[id]
+	if out == nil {
+		var res []struct {
+			MethodID  jdi.MethodID
+			Name      string
+			Signature string
+			ModBits   int
+		}
+		m.runCmd(connect.CmdReferenceTypeMethods, id, &res)
+		out = make([]jdi.Method, len(res))
+		for index, value := range res {
+			out[index] = m.makeMethodMirror(value.MethodID, &typeComponentInfo{
+				Name:          value.Name,
+				Signature:     value.Signature,
+				Modifiers:     value.ModBits,
+				DeclaringType: thisTypeRef,
+			})
+		}
+		m.typeMethodMap[id] = out
 	}
-	m.runCmd(connect.CmdReferenceTypeMethods, id, &res)
-	out := make([]jdi.Method, len(res))
-	for index, value := range res {
-		out[index] = m.makeMethodMirror(value.MethodID, &typeComponentInfo{
-			Name:          value.Name,
-			Signature:     value.Signature,
-			Modifiers:     value.ModBits,
-			DeclaringType: thisTypeRef,
-		})
-	}
-	return &out
+	return out
 }
 func (m *MirrorImpl) referenceTypeGetValues(id jdi.ReferenceTypeID, fields []jdi.FieldID) *[]jdi.Value {
 	req := struct {
@@ -550,12 +576,12 @@ func (m *MirrorImpl) classTypeSuperclass(id jdi.ClassID) jdi.ClassType {
 	m.runCmd(connect.CmdClassTypeSuperclass, id, &res)
 	return m.makeReferenceTypeMirror(jdi.ReferenceTypeID(res), jdi.ClassTypeTag, &referenceTypeInfo{}).(jdi.ClassType)
 }
-func (m *MirrorImpl) classTypeInvokeMethod(classId jdi.ClassID, threadId jdi.ThreadID, methodId jdi.MethodID, args []jdi.ValueID, options jdi.InvokeOptions) (jdi.Value, jdi.ObjectReference) {
+func (m *MirrorImpl) classTypeInvokeMethod(classId jdi.ClassID, threadId jdi.ThreadID, methodId jdi.MethodID, args []jdi.TaggedAny, options jdi.InvokeOptions) (jdi.Value, jdi.ObjectReference) {
 	req := struct {
 		Class   jdi.ClassID
 		Thread  jdi.ThreadID
 		Method  jdi.MethodID
-		Args    []jdi.ValueID
+		Args    []jdi.TaggedAny
 		Options jdi.InvokeOptions
 	}{classId, threadId, methodId, args, options}
 
@@ -564,7 +590,8 @@ func (m *MirrorImpl) classTypeInvokeMethod(classId jdi.ClassID, threadId jdi.Thr
 		Exception jdi.TaggedObjectID
 	}
 	m.runCmd(connect.CmdClassTypeInvokeMethod, &req, &res)
-	valueOut := (*m.readValueID(&[]jdi.ValueID{res.Result}))[1]
+
+	valueOut := (*m.readValueID(&[]jdi.ValueID{res.Result}))[0]
 	return valueOut, m.makeObjectMirror(res.Exception.ObjectID, res.Exception.TagID)
 }
 func (m *MirrorImpl) classTypeNewInstance(classId jdi.ClassID, threadId jdi.ThreadID, constructor jdi.MethodID, args []jdi.ValueID, options jdi.InvokeOptions) (jdi.ObjectReference, jdi.ObjectReference) {
@@ -710,13 +737,13 @@ func (m *MirrorImpl) objectReferenceGetValues(id jdi.ObjectID, fields []jdi.Fiel
 	m.runCmd(connect.CmdObjectReferenceGetValues, &req, &res)
 	return m.readValueID(&res)
 }
-func (m *MirrorImpl) objectReferenceInvokeMethod(id jdi.ObjectID, threadId jdi.ThreadID, classId jdi.ClassID, methodId jdi.MethodID, args []jdi.ValueID, options jdi.InvokeOptions) (jdi.Value, jdi.ObjectReference) {
+func (m *MirrorImpl) objectReferenceInvokeMethod(id jdi.ObjectID, threadId jdi.ThreadID, classId jdi.ClassID, methodId jdi.MethodID, args []jdi.TaggedAny, options jdi.InvokeOptions) (jdi.Value, jdi.ObjectReference) {
 	var req = struct {
 		ObjectId jdi.ObjectID
 		ThreadId jdi.ThreadID
 		ClassId  jdi.ClassID
 		MethodId jdi.MethodID
-		Args     []jdi.ValueID
+		Args     []jdi.TaggedAny
 		Options  jdi.InvokeOptions
 	}{id, threadId, classId, methodId, args, options}
 	var res struct {

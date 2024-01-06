@@ -23,7 +23,7 @@ func (a *ArrayTypeImpl) GetComponentTypeName() string {
 func (a *ArrayTypeImpl) GetComponentType() jdi.Type {
 	if !a.hasLockClasses() || !a.initComponentType {
 		hasFind := false
-		if isObjectTag(a.GetComponentSignature()) {
+		if isObjectTag(jdi.Tag(a.GetComponentSignature()[0])) {
 			signatureTypes := a.vmClassesBySignature(a.GetComponentSignature())
 			for _, value := range *signatureTypes {
 				if a.GetClassLoader() == value.GetClassLoader() {

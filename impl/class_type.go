@@ -70,9 +70,5 @@ func (c *ClassTypeImpl) IsEnum() bool {
 	return false
 }
 func (c *ClassTypeImpl) InvokeMethod(reference jdi.ThreadReference, method jdi.Method, args []jdi.Value, options jdi.InvokeOptions) (jdi.Value, jdi.ObjectReference) {
-	argsValueId := make([]jdi.ValueID, len(args))
-	for index, value := range args {
-		argsValueId[index] = value
-	}
-	return c.classTypeInvokeMethod(jdi.ClassID(c.TypeID), jdi.ThreadID(reference.GetUniqueID()), jdi.MethodID(method.GetUniqueID()), argsValueId, options)
+	return invokeStaticMethod(c.MirrorImpl, jdi.ClassID(c.TypeID), reference, method, args, options)
 }

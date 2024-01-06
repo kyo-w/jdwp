@@ -57,3 +57,7 @@ func (t *ThreadGroupReferenceImpl) GetThreadGroups() []jdi.ThreadGroupReference 
 	}
 	return t.subThreadGroup
 }
+
+func (t *ThreadGroupReferenceImpl) GetTagType() jdi.Tag {
+	return jdi.ThreadGroup
+}
