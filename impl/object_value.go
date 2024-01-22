@@ -35,7 +35,7 @@ func (o *ObjectReferenceImpl) GetValues(fields []jdi.Field) map[jdi.Field]jdi.Va
 		fieldId[index] = jdi.FieldID(value.GetUniqueID())
 	}
 	fieldResult := o.objectReferenceGetValues(o.ObjectId, fieldId)
-	var out map[jdi.Field]jdi.Value
+	var out = make(map[jdi.Field]jdi.Value)
 	for index, value := range *fieldResult {
 		out[fields[index]] = value
 	}
