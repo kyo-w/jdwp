@@ -22,6 +22,7 @@ type BreakpointRequestImpl struct {
 type ClassPrepareRequestImpl struct {
 	ClassVisibleEventRequestImpl
 }
+
 type ClassUnloadRequestImpl struct {
 	ClassVisibleEventRequestImpl
 }

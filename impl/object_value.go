@@ -85,3 +85,6 @@ func (o *ObjectReferenceImpl) GetReferringObjects(maxReferrers int) []jdi.Object
 func (o *ObjectReferenceImpl) GetTagType() jdi.Tag {
 	return jdi.OBJECT
 }
+func (o *ObjectReferenceImpl) GetFieldValues(fieldNames ...string) jdi.Value {
+	return nil
+}

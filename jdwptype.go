@@ -22,7 +22,10 @@ type MethodID uint64
 type FieldID uint64
 type FrameID uint64
 type ValueID interface{}
-type ThreadStatus int
+type ThreadStatus struct {
+	ThreadStatus  int
+	SuspendStatus int
+}
 
 type InvokeOptions int
 type ByteID byte

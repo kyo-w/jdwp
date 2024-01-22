@@ -12,10 +12,9 @@ type ThreadReferenceImpl struct {
 	frameCount           int
 }
 
-func (t *ThreadReferenceImpl) IsAtBreakpoint() bool {
-	//TODO implement me
-	panic("implement me")
-}
+//func (t *ThreadReferenceImpl) IsAtBreakpoint() bool {
+//	status := t.threadReferenceStatus(jdi.ThreadID(t.ObjectId))
+//}
 
 func (t *ThreadReferenceImpl) GetName() string {
 	if t.name == "" {
@@ -48,7 +47,8 @@ func (t *ThreadReferenceImpl) Status() jdi.ThreadStatus {
 }
 
 func (t *ThreadReferenceImpl) IsSuspended() bool {
-	return (t.suspendedZombieCount > 0) || (t.threadReferenceStatus(jdi.ThreadID(t.ObjectId))&0x1) != 0
+	status := t.threadReferenceStatus(jdi.ThreadID(t.ObjectId))
+	return (t.suspendedZombieCount > 0) || (status.SuspendStatus&0x1) != 0
 }
 
 func (t *ThreadReferenceImpl) GetThreadGroup() jdi.ThreadGroupReference {

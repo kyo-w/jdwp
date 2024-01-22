@@ -72,6 +72,7 @@ type ObjectReference interface {
 	GetUniqueID() ObjectID
 	// GetReferenceType 返回对象引用的ReferenceType
 	GetReferenceType() ReferenceType
+	GetFieldValues(fields ...string) Value
 	// GetValue 通过字段返回Value值
 	GetValue(Field) Value
 	GetValues([]Field) map[Field]Value
@@ -156,7 +157,6 @@ type ThreadReference interface {
 	SuspendCount() int
 	Status() ThreadStatus
 	IsSuspended() bool
-	IsAtBreakpoint() bool
 	GetThreadGroup() ThreadGroupReference
 	GetFrameCount() int
 	GetFrames() []StackFrame

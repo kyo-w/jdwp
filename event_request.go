@@ -8,7 +8,6 @@ type EventRequest interface {
 	Disable()
 	SetSuspendPolicy(policy SuspendPolicy)
 	GetSuspendPolicy() SuspendPolicy
-	// SetHandler  bool表示是否自动关闭
 	SetHandler(func(request EventObject) bool)
 	GetKindType() EventKind
 }
