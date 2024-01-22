@@ -2,6 +2,16 @@ package impl
 
 import jdi "github.com/kyo-w/jdwp"
 
+func removenullvalue(slice []jdi.Value) *[]jdi.Value {
+	var output []jdi.Value
+	for _, element := range slice {
+		if element != nil { //if condition satisfies add the elements in new slice
+			output = append(output, element)
+		}
+	}
+	return &output //slice with no nil-values
+}
+
 func isObjectTag(tag jdi.Tag) bool {
 	return (jdi.OBJECT == tag) ||
 		(tag == jdi.ARRAY) ||

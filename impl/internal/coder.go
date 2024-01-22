@@ -46,11 +46,9 @@ func (c *Connection) encode(w Writer, v reflect.Value) error {
 
 	switch v.Type() {
 	case reflect.TypeOf((*jdi.EventModifier)(nil)).Elem():
-		// EventModifier's are prefixed with their 1-byte modKind.
 		w.Uint8(o.(jdi.EventModifier).ModKind())
 
 	case reflect.TypeOf((*jdi.ValueID)(nil)).Elem():
-		// values are prefixed with their 1-tag api.
 		switch o.(type) {
 		case jdi.ArrayID:
 			w.Uint8(uint8(jdi.ARRAY))
@@ -151,6 +149,7 @@ func (c *Connection) encode(w Writer, v reflect.Value) error {
 // decode reads the value v from r, using the JDWP encoding scheme.
 func (c *Connection) decode(r Reader, v reflect.Value) error {
 	switch v.Type() {
+	// event事件
 	case reflect.TypeOf((*jdi.EventResponse)(nil)).Elem():
 		var kind jdi.EventKind
 		if err := c.decode(r, reflect.ValueOf(&kind)); err != nil {
@@ -159,7 +158,29 @@ func (c *Connection) decode(r Reader, v reflect.Value) error {
 		event := kind.Event()
 		v.Set(reflect.ValueOf(event))
 		v = v.Elem()
-		// Continue to decode event body below.
+	case reflect.TypeOf((*jdi.ArrayRegion)(nil)).Elem():
+		tag := jdi.Tag(r.Uint8())
+		var ty reflect.Type
+		switch tag {
+		case jdi.OBJECT, jdi.ARRAY, jdi.STRING, jdi.THREAD, jdi.ThreadGroup, jdi.ClassLoader, jdi.ClassObject:
+			ty = reflect.TypeOf([]jdi.TaggedObjectID{})
+			count := int(r.Uint32())
+			slice := reflect.MakeSlice(ty, count, count)
+			for i := 0; i < count; i++ {
+				c.decode(r, slice.Index(i))
+			}
+			v.Field(2).Set(slice)
+			return r.Error()
+		default:
+			ty = reflect.TypeOf([]jdi.ValueID{})
+			count := int(r.Uint32())
+			slice := reflect.MakeSlice(ty, count, count)
+			for i := 0; i < count; i++ {
+				c.decode(r, slice.Index(i))
+			}
+			v.Field(1).Set(slice)
+			return r.Error()
+		}
 
 	case reflect.TypeOf((*jdi.ValueID)(nil)).Elem():
 		tag := jdi.Tag(r.Uint8())
@@ -178,7 +199,7 @@ func (c *Connection) decode(r Reader, v reflect.Value) error {
 		case jdi.DOUBLE:
 			ty = reflect.TypeOf(float64(0))
 		case jdi.INT:
-			ty = reflect.TypeOf(int(0))
+			ty = reflect.TypeOf(0)
 		case jdi.SHORT:
 			ty = reflect.TypeOf(int16(0))
 		case jdi.LONG:
@@ -206,24 +227,19 @@ func (c *Connection) decode(r Reader, v reflect.Value) error {
 		v.Set(data)
 		return r.Error()
 	}
-
 	t := v.Type()
 	o := v.Interface()
 	switch o := o.(type) {
 	case jdi.ReferenceTypeID, jdi.ClassID, jdi.InterfaceID, jdi.ArrayTypeID:
 		v.Set(reflect.ValueOf(ReadUint(r, c.idSizes.ReferenceTypeIDSize*8)).Convert(t))
-
 	case jdi.MethodID:
 		v.Set(reflect.ValueOf(ReadUint(r, c.idSizes.MethodIDSize*8)).Convert(t))
-
 	case jdi.FieldID:
 		v.Set(reflect.ValueOf(ReadUint(r, c.idSizes.FieldIDSize*8)).Convert(t))
-
 	case jdi.ObjectID, jdi.ThreadID, jdi.ThreadGroupID, jdi.StringID, jdi.ClassLoaderID, jdi.ClassObjectID, jdi.ArrayID:
 		byteValue := ReadUint(r, c.idSizes.ObjectIDSize*8)
 		valueRef := reflect.ValueOf(byteValue).Convert(t)
 		v.Set(valueRef)
-
 	case jdi.EventModifier:
 		panic("Cannot decode EventModifiers")
 

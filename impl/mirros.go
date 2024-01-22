@@ -904,9 +904,19 @@ func (m *MirrorImpl) arrayReferenceGetValues(id jdi.ArrayID, first, length int) 
 		FirstIndex jdi.Int
 		Length     jdi.Int
 	}{id, jdi.Int(first), jdi.Int(length)}
-	var res []jdi.ValueID
+	var res jdi.ArrayRegion
 	m.runCmd(connect.CmdArrayReferenceGetValues, &req, &res)
-	return m.readValueID(&res)
+	if res.UnTaggedValue != nil {
+		return m.readValueID(&res.UnTaggedValue)
+	}
+	if res.TaggedValue != nil {
+		out := make([]jdi.Value, len(res.TaggedValue))
+		for index, value := range res.TaggedValue {
+			out[index] = m.makeObjectMirror(value.ObjectID, value.TagID)
+		}
+		return removenullvalue(out)
+	}
+	panic("cmd[arrayReferenceGetValues]: value of array is empty")
 }
 
 func (m *MirrorImpl) classLoaderReferenceVisibleClasses(id jdi.ClassObjectID) *[]jdi.ReferenceType {

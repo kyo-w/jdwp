@@ -150,7 +150,6 @@ func (p *pending) wait(out interface{}) error {
 		if err := p.c.decode(d, reflect.ValueOf(out)); err != nil {
 			return err
 		}
-		//fmt.Printf("<%v> recv: %+v", p.id, out)
 		if offset, _ := r.Seek(0, 1); offset != int64(len(reply.data)) {
 			panic(fmt.Errorf("Only %d/%d bytes read from reply packet", offset, len(reply.data)))
 		}

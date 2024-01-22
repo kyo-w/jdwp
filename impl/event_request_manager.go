@@ -81,7 +81,7 @@ func (e *EventRequestManagerImpl) CreateBreakpointRequest(location jdi.Location)
 	request.filters[0] = jdi.LocationOnlyEventModifier{
 		Method:   jdi.MethodID(location.GetMethod().GetUniqueID()),
 		Type:     location.GetDeclaringType().GetTypeTag(),
-		Class:    jdi.ClassID(location.GetDeclaringType().GetUniqueID()),
+		Class:    jdi.ClassObjectID(location.GetDeclaringType().GetUniqueID()),
 		Location: uint64(location.GetCodeIndex()),
 	}
 	request.Location = location
