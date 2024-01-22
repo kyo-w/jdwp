@@ -72,10 +72,10 @@ type ObjectReference interface {
 	GetUniqueID() ObjectID
 	// GetReferenceType 返回对象引用的ReferenceType
 	GetReferenceType() ReferenceType
-	GetFieldValues(fields ...string) Value
-	// GetValue 通过字段返回Value值
-	GetValue(Field) Value
-	GetValues([]Field) map[Field]Value
+	GetValuesByFieldNames(fields ...string) Value
+	// GetValueByField 通过字段返回Value值
+	GetValueByField(Field) Value
+	GetValuesByFields([]Field) map[Field]Value
 
 	// InvokeMethod
 	//ThreadReference 线程引用

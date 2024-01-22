@@ -24,12 +24,12 @@ func (o *ObjectReferenceImpl) GetReferenceType() jdi.ReferenceType {
 	return o.objectReferenceReferenceType(o.ObjectId)
 }
 
-func (o *ObjectReferenceImpl) GetValue(field jdi.Field) jdi.Value {
-	out := o.GetValues([]jdi.Field{field})
+func (o *ObjectReferenceImpl) GetValueByField(field jdi.Field) jdi.Value {
+	out := o.GetValuesByFields([]jdi.Field{field})
 	return out[field]
 }
 
-func (o *ObjectReferenceImpl) GetValues(fields []jdi.Field) map[jdi.Field]jdi.Value {
+func (o *ObjectReferenceImpl) GetValuesByFields(fields []jdi.Field) map[jdi.Field]jdi.Value {
 	fieldId := make([]jdi.FieldID, len(fields))
 	for index, value := range fields {
 		fieldId[index] = jdi.FieldID(value.GetUniqueID())
@@ -85,6 +85,16 @@ func (o *ObjectReferenceImpl) GetReferringObjects(maxReferrers int) []jdi.Object
 func (o *ObjectReferenceImpl) GetTagType() jdi.Tag {
 	return jdi.OBJECT
 }
-func (o *ObjectReferenceImpl) GetFieldValues(fieldNames ...string) jdi.Value {
-	return nil
+func (o *ObjectReferenceImpl) GetValuesByFieldNames(fieldNames ...string) jdi.Value {
+	var tmpObjectRef jdi.Value
+	tmpObjectRef = o
+	for _, fieldName := range fieldNames {
+		objectRef, isObject := tmpObjectRef.(jdi.ObjectReference)
+		if !isObject {
+			panic(tmpObjectRef.GetType().GetSignature() + " is not object")
+		}
+		fieldRef := objectRef.GetType().(jdi.ClassType).GetFieldByName(fieldName)
+		tmpObjectRef = objectRef.GetValueByField(fieldRef)
+	}
+	return tmpObjectRef
 }
