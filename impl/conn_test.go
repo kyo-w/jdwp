@@ -7,7 +7,7 @@ import (
 )
 
 func TestVm(t *testing.T) {
-	vm, _ := Attach(context.Background(), ":5005")
+	vm, _ := Attach(context.Background(), "192.168.116.100:5005")
 	signature := vm.GetClassesByName("org.apache.catalina.mapper.Mapper")[0]
 	for _, value := range signature.GetAllMethods() {
 		if value.GetName() == "internalMap" {
